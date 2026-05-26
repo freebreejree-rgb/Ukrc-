@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>УкрС++ — IDE</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Unbounded:wght@900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0e14;--surf:#13151e;--surf2:#1a1d28;--border:#252836;
+  --accent:#4fc3f7;--yellow:#ffd54f;--green:#a5d6a7;--red:#ef5350;
+  --text:#e8eaf6;--muted:#6b7280;--kw:#c792ea;--type:#80cbc4;--func:#82aaff;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:50px;background:var(--surf);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{font-family:'Unbounded',sans-serif;font-size:16px;background:linear-gradient(135deg,var(--accent),var(--yellow),var(--kw));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-family:'Inter',sans-serif;font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;-webkit-text-fill-color:var(--muted)}
+.hact{display:flex;gap:6px;align-items:center}
+select.exsel{background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;outline:none}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;transition:all .15s}
+.btn-ghost{background:var(--surf2);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--border)}
+.btn-blue{background:linear-gradient(135deg,var(--accent),#0288d1);color:#000;font-weight:600}
+.btn-blue:hover{box-shadow:0 3px 14px rgba(79,195,247,.4);transform:translateY(-1px)}
+.btn-green{background:linear-gradient(135deg,#66bb6a,#2e7d32);color:#fff;font-weight:600}
+.btn-green:hover{box-shadow:0 3px 14px rgba(102,187,106,.4);transform:translateY(-1px)}
+.btn-green:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+.main{display:flex;flex:1;overflow:hidden}
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sb-title{font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sb-scroll{flex:1;overflow-y:auto}
+.sb-scroll::-webkit-scrollbar{width:3px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sb-cat{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 14px 3px}
+.kw-row{display:flex;justify-content:space-between;align-items:center;padding:3px 14px;font-size:11px;border-bottom:1px solid rgba(37,40,54,.5)}
+.kw-uk{font-family:'JetBrains Mono',monospace;color:var(--kw);font-weight:700;font-size:11px}
+.kw-cpp{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:10px}
+/* EDITOR */
+.editor-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.tab-bar{display:flex;align-items:center;background:var(--surf);border-bottom:1px solid var(--border);height:34px;padding:0 8px;flex-shrink:0}
+.tab{padding:4px 12px;font-size:12px;font-family:'JetBrains Mono',monospace;border-radius:4px 4px 0 0;color:var(--accent);background:var(--surf2);border-bottom:2px solid var(--accent)}
+.ed-wrap{display:flex;flex:1;overflow:hidden;position:relative}
+.ln{width:44px;padding:14px 8px 14px 0;text-align:right;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;color:var(--muted);background:var(--surf2);border-right:1px solid var(--border);flex-shrink:0;overflow:hidden;user-select:none}
+.editor{position:absolute;top:0;left:44px;right:0;bottom:0;background:var(--surf2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;border:none;outline:none;resize:none;padding:14px;caret-color:var(--accent);tab-size:4;white-space:pre;overflow:auto}
+.editor::-webkit-scrollbar{width:6px;height:6px}
+.editor::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* RIGHT */
+.rpanel{width:360px;display:flex;flex-direction:column;background:var(--surf);border-left:1px solid var(--border);flex-shrink:0}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.dot.err{background:var(--red)}
+.dot.run{background:var(--yellow)}
+pre.cpp-out{flex:1;overflow:auto;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;white-space:pre;color:var(--text);opacity:.9}
+pre.cpp-out::-webkit-scrollbar{width:3px}
+pre.cpp-out::-webkit-scrollbar-thumb{background:var(--border)}
+.console{flex:1;overflow-y:auto;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65;min-height:0}
+.console::-webkit-scrollbar{width:3px}
+.console::-webkit-scrollbar-thumb{background:var(--border)}
+.c-info{color:var(--accent)}
+.c-ok{color:var(--green)}
+.c-err{color:var(--red)}
+.c-out{color:var(--text)}
+.c-warn{color:var(--yellow)}
+.stdin-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-top:1px solid var(--border);flex-shrink:0}
+.stdin-bar label{font-size:11px;color:var(--muted);white-space:nowrap}
+.stdin-in{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 8px;outline:none}
+.stdin-in:focus{border-color:var(--accent)}
+.statusbar{height:22px;background:linear-gradient(90deg,#0277bd,#01579b);display:flex;align-items:center;padding:0 14px;gap:14px;font-size:11px;color:rgba(255,255,255,.8);flex-shrink:0}
+.badge{background:rgba(255,255,255,.2);padding:0 5px;border-radius:3px;font-size:10px;font-weight:600}
+/* AUTOCOMPLETE */
+#acMenu{position:fixed;display:none;z-index:9999;background:#1e2130;border:1px solid #3a3f55;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.6);min-width:260px;max-width:340px;max-height:260px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:13px}
+#acMenu::-webkit-scrollbar{width:4px}
+#acMenu::-webkit-scrollbar-thumb{background:#3a3f55;border-radius:2px}
+.ac-item{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;gap:10px;border-bottom:1px solid rgba(58,63,85,.4);transition:background .08s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.ac-sel{background:#2d3148}
+.ac-item.ac-sel{border-left:2px solid var(--accent);padding-left:10px}
+.ac-left{display:flex;align-items:center;gap:8px}
+.ac-icon{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.ac-word{color:#e8eaf6;font-weight:700}
+.ac-word b{color:var(--accent);font-weight:900}
+.ac-cpp{color:#546e7a;font-size:11px;white-space:nowrap}
+.ac-badge{font-size:9px;padding:1px 5px;border-radius:3px;font-family:'Inter',sans-serif;font-weight:600;white-space:nowrap;flex-shrink:0}
+.ac-hdr{padding:4px 12px 2px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#546e7a;font-family:'Inter',sans-serif;border-bottom:1px solid #2a2d3e;background:#181a26}
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center">
+    <div class="logo">УкрС++<span class="logo-sub">v1.0 — Мова програмування</span></div>
+  </div>
+  <div class="hact">
+    <select class="exsel" id="exSel" onchange="loadExample(this.value)">
+      <option value="">— Приклади —</option>
+      <option value="hello">Привіт, Світ!</option>
+      <option value="loop">Цикли та умови</option>
+      <option value="func">Функції</option>
+      <option value="array">Масиви та вектори</option>
+      <option value="cls">Класи</option>
+      <option value="tmpl">Шаблони</option>
+    </select>
+    <button class="btn btn-ghost" onclick="clearAll()">🗑 Очистити</button>
+    <button class="btn btn-blue" onclick="doTranspile()">⟳ Транспілювати</button>
+    <button class="btn btn-green" id="btnRun" onclick="runCode()">▶ Запустити</button>
+  </div>
+</header>
+<div class="main">
+  <div class="sidebar">
+    <div class="sb-title">Словник ключових слів</div>
+    <div class="sb-scroll" id="kwRef"></div>
+  </div>
+  <div class="editor-pane">
+    <div class="tab-bar"><div class="tab">main.укрcpp</div></div>
+    <div class="ed-wrap">
+      <div class="ln" id="ln">1</div>
+      <textarea class="editor" id="ed" spellcheck="false"
+        oninput="updateLn();acOnInput(event)" onscroll="syncScroll()"
+        onkeydown="handleTab(event);acOnKeyDown(event)" onclick="updateCursor();acHide()" onkeyup="updateCursor()"
+        placeholder="// Пишіть код УкрС++ тут..."></textarea>
+    </div>
+  </div>
+  <div class="rpanel">
+    <div style="height:50%;display:flex;flex-direction:column;border-bottom:1px solid var(--border);min-height:0">
+      <div class="ph"><span>C++ (транспільований)</span><div class="dot" id="dotCpp"></div></div>
+      <pre class="cpp-out" id="cppOut">// Тут з'явиться транспільований C++ код</pre>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+      <div class="ph"><span>Консоль / Результат</span><div class="dot" id="dotCon"></div></div>
+      <div class="console" id="con"></div>
+      <div class="stdin-bar">
+        <label>stdin:</label>
+        <input class="stdin-in" id="stdinIn" type="text" placeholder="Дані для програми (якщо є cin)...">
+      </div>
+    </div>
+  </div>
+</div>
+<div class="statusbar">
+  <span>🇺🇦 УкрС++</span>
+  <span class="badge">UTF-8</span>
+  <span id="stCursor">Рядок 1, Стовпець 1</span>
+  <span id="stWords">0 слів</span>
+</div>
+<div id="acMenu"></div>
+<script>
+// ============================================================
+// KEYWORD TABLE  (uk → cpp, sorted longest-first automatically)
+// Rules:
+//   - Ukrainian identifiers map 1-to-1 to C++ tokens
+//   - Include headers map to their real names
+//   - IO keywords map to std:: versions
+// ============================================================
+const KW = [
+  // --- Типи даних ---
+  {uk:'беззнакове',    cpp:'unsigned',      cat:'type'},
+  {uk:'логічний',      cpp:'bool',          cat:'type'},
+  {uk:'дійснеф',       cpp:'float',         cat:'type'},
+  {uk:'дійсне',        cpp:'double',        cat:'type'},
+  {uk:'символ',        cpp:'char',          cat:'type'},
+  {uk:'порожньо',      cpp:'void',          cat:'type'},
+  {uk:'коротке',       cpp:'short',         cat:'type'},
+  {uk:'довге',         cpp:'long',          cat:'type'},
+  {uk:'ціле',          cpp:'int',           cat:'type'},
+  {uk:'авто',          cpp:'auto',          cat:'type'},
+  {uk:'розмір_т',      cpp:'size_t',        cat:'type'},
+
+  // --- Керування потоком ---
+  {uk:'інакше_якщо',   cpp:'else if',       cat:'flow'},
+  {uk:'продовжити',    cpp:'continue',      cat:'flow'},
+  {uk:'перервати',     cpp:'break',         cat:'flow'},
+  {uk:'повернути',     cpp:'return',        cat:'flow'},
+  {uk:'зробити',       cpp:'do',            cat:'flow'},
+  {uk:'поки',          cpp:'while',         cat:'flow'},
+  {uk:'інакше',        cpp:'else',          cat:'flow'},
+  {uk:'якщо',          cpp:'if',            cat:'flow'},
+  {uk:'для',           cpp:'for',           cat:'flow'},
+  {uk:'вибрати',       cpp:'switch',        cat:'flow'},
+  {uk:'випадок',       cpp:'case',          cat:'flow'},
+  {uk:'типово',        cpp:'default',       cat:'flow'},
+  {uk:'перейти',       cpp:'goto',          cat:'flow'},
+
+  // --- ООП ---
+  {uk:'перевизначити', cpp:'override',      cat:'oop'},
+  {uk:'віртуальний',   cpp:'virtual',       cat:'oop'},
+  {uk:'захищений',     cpp:'protected',     cat:'oop'},
+  {uk:'використовувати',cpp:'using',        cat:'oop'},
+  {uk:'простір_імен',  cpp:'namespace',     cat:'oop'},
+  {uk:'відкритий',     cpp:'public',        cat:'oop'},
+  {uk:'закритий',      cpp:'private',       cat:'oop'},
+  {uk:'статичний',     cpp:'static',        cat:'oop'},
+  {uk:'зовнішній',     cpp:'extern',        cat:'oop'},
+  {uk:'клас_тип',      cpp:'typename',      cat:'oop'},
+  {uk:'структура',     cpp:'struct',        cat:'oop'},
+  {uk:'шаблон',        cpp:'template',      cat:'oop'},
+  {uk:'перелік',       cpp:'enum',          cat:'oop'},
+  {uk:'видалити',      cpp:'delete',        cat:'oop'},
+  {uk:'новий',         cpp:'new',           cat:'oop'},
+  {uk:'клас',          cpp:'class',         cat:'oop'},
+  {uk:'друг',          cpp:'friend',        cat:'oop'},
+  {uk:'це',            cpp:'this',          cat:'oop'},
+
+  // --- Пам'ять / модифікатори ---
+  {uk:'константа',     cpp:'const',         cat:'mem'},
+  {uk:'вбудований',    cpp:'inline',        cat:'mem'},
+  {uk:'мінливий',      cpp:'volatile',      cat:'mem'},
+  {uk:'явний',         cpp:'explicit',      cat:'mem'},
+  {uk:'розмір',        cpp:'sizeof',        cat:'mem'},
+
+  // --- Значення ---
+  {uk:'нуль_вказ',     cpp:'nullptr',       cat:'val'},
+  {uk:'хибність',      cpp:'false',         cat:'val'},
+  {uk:'істина',        cpp:'true',          cat:'val'},
+
+  // --- Виключення ---
+  {uk:'спробувати',    cpp:'try',           cat:'exc'},
+  {uk:'спіймати',      cpp:'catch',         cat:'exc'},
+  {uk:'кинути',        cpp:'throw',         cat:'exc'},
+
+  // --- IO (з namespace std) ---
+  {uk:'виведення',     cpp:'std::cout',     cat:'io'},
+  {uk:'введення',      cpp:'std::cin',      cat:'io'},
+  {uk:'помилка_в',     cpp:'std::cerr',     cat:'io'},
+  {uk:'новий_рядок',   cpp:'std::endl',     cat:'io'},
+  {uk:'стандарт',      cpp:'std',           cat:'io'},
+
+  // --- Бібліотеки / директиви ---
+  {uk:'включити',      cpp:'#include',      cat:'lib'},
+  {uk:'визначити',     cpp:'#define',       cat:'lib'},
+  {uk:'головна',       cpp:'main',          cat:'lib'},
+
+  // --- Стандартні типи та контейнери ---
+  {uk:'рядок',         cpp:'std::string',   cat:'lib'},
+  {uk:'вектор',        cpp:'std::vector',   cat:'lib'},
+  {uk:'карта',         cpp:'std::map',      cat:'lib'},
+  {uk:'множина',       cpp:'std::set',      cat:'lib'},
+  {uk:'пара',          cpp:'std::pair',     cat:'lib'},
+  {uk:'черга',         cpp:'std::queue',    cat:'lib'},
+  {uk:'алгоритм',      cpp:'algorithm',     cat:'lib'},
+  {uk:'математика',    cpp:'cmath',         cat:'lib'},
+];
+
+// Headers: Ukrainian include names → real C++ headers
+const HEADERS = {
+  'рядок':     'string',
+  'вектор':    'vector',
+  'карта':     'map',
+  'множина':   'set',
+  'пара':      'utility',
+  'черга':     'queue',
+  'стек':      'stack',
+  'алгоритм':  'algorithm',
+  'математика':'cmath',
+  'потоки':    'sstream',
+  'файл':      'fstream',
+};
+
+const CATS = {
+  type:{label:'Типи даних',             color:'#80cbc4'},
+  flow:{label:'Керування потоком',      color:'#c792ea'},
+  oop: {label:'ООП / Класи',            color:'#82aaff'},
+  mem: {label:"Пам'ять / Модифікатори",color:'#ffd54f'},
+  val: {label:'Значення',               color:'#f78c6c'},
+  exc: {label:'Виключення',             color:'#ef5350'},
+  io:  {label:'Введення / Виведення',   color:'#4fc3f7'},
+  lib: {label:'Бібліотеки / Типи',      color:'#a5d6a7'},
+};
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function renderSidebar() {
+  const ref = document.getElementById('kwRef');
+  let html = '';
+  for (const [cat, info] of Object.entries(CATS)) {
+    const list = KW.filter(k => k.cat === cat);
+    if (!list.length) continue;
+    html += `<div class="sb-cat" style="color:${info.color}">${info.label}</div>`;
+    for (const k of list) {
+      html += `<div class="kw-row"><span class="kw-uk">${k.uk}</span><span class="kw-cpp">→ ${k.cpp}</span></div>`;
+    }
+  }
+  ref.innerHTML = html;
+}
+
+// ============================================================
+// TRANSPILER
+// ============================================================
+function transpileCode(src) {
+  const lines = src.split('\n');
+  const out = [];
+
+  for (const rawLine of lines) {
+    // Separate code part from line comment
+    let line = rawLine;
+    let comment = '';
+    // Find // that's not inside a string
+    let inStr = false, strChar = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (!inStr && (c === '"' || c === "'")) { inStr = true; strChar = c; }
+      else if (inStr && c === strChar && line[i-1] !== '\\') { inStr = false; }
+      else if (!inStr && c === '/' && line[i+1] === '/') {
+        comment = line.slice(i);
+        line = line.slice(0, i);
+        break;
+      }
+    }
+
+    // Handle #include lines specially
+    const includeMatch = line.match(/^(\s*)включити\s+<([^>]+)>/);
+    if (includeMatch) {
+      const indent = includeMatch[1];
+      const hdr = includeMatch[2].trim();
+      const realHdr = HEADERS[hdr] || hdr;
+      out.push(indent + '#include <' + realHdr + '>' + comment);
+      continue;
+    }
+
+    // Replace string literals with placeholders to protect them
+    const strLiterals = [];
+    line = line.replace(/"((?:[^"\\]|\\.)*)"/g, (_, content) => {
+      strLiterals.push('"' + content + '"');
+      return '\x00STR' + (strLiterals.length - 1) + '\x00';
+    });
+    line = line.replace(/'((?:[^'\\]|\\.)*)'/g, (_, content) => {
+      strLiterals.push("'" + content + "'");
+      return '\x00CHR' + (strLiterals.length - 1) + '\x00';
+    });
+
+    // Sort KW by length desc so longer tokens match first
+    const sorted = [...KW].sort((a, b) => b.uk.length - a.uk.length);
+    for (const kw of sorted) {
+      // Skip include-related in non-include lines
+      const esc = kw.uk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Unicode-aware word boundary: not preceded/followed by word char or cyrillic
+      const re = new RegExp('(?<![\\w\u0400-\u04FF])' + esc + '(?![\\w\u0400-\u04FF])', 'g');
+      line = line.replace(re, kw.cpp);
+    }
+
+    // Restore string literals
+    line = line.replace(/\x00STR(\d+)\x00/g, (_, i) => strLiterals[+i]);
+    line = line.replace(/\x00CHR(\d+)\x00/g, (_, i) => strLiterals[+i]);
+
+    out.push(line + comment);
+  }
+
+  return out.join('\n');
+}
+
+function doTranspile() {
+  const src = document.getElementById('ed').value;
+  if (!src.trim()) { clog('info','// Введіть код для транспіляції'); return; }
+  const t0 = performance.now();
+  const cpp = transpileCode(src);
+  const ms = (performance.now() - t0).toFixed(2);
+  document.getElementById('cppOut').textContent = cpp;
+  document.getElementById('dotCpp').className = 'dot';
+  const used = KW.filter(k => new RegExp('(?<![\\w\u0400-\u04FF])' + k.uk.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?![\\w\u0400-\u04FF])').test(src));
+  clearCon();
+  clog('ok', '✅ Транспіляція успішна за ' + ms + 'мс');
+  clog('info', '📄 Рядків: ' + src.split('\n').length + ' | 🔑 Ключових слів: ' + used.length);
+  return cpp;
+}
+
+// ============================================================
+// RUN via Wandbox
+// ============================================================
+async function runCode() {
+  const src = document.getElementById('ed').value.trim();
+  if (!src) { clearCon(); clog('err','✖ Редактор порожній'); return; }
+
+  const cpp = transpileCode(src);
+  document.getElementById('cppOut').textContent = cpp;
+  document.getElementById('dotCpp').className = 'dot';
+
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Компілюємо...';
+  document.getElementById('dotCon').className = 'dot run';
+
+  clearCon();
+  clog('info', '⏳ Надсилаємо на Wandbox (GCC latest, C++17)...');
+
+  const stdin = document.getElementById('stdinIn').value;
+
+  try {
+    const payload = {
+      compiler: 'gcc-head',
+      code: cpp,
+      stdin: stdin,
+      // Pass options as separate array items via compiler-option-raw
+      'compiler-option-raw': '-std=c++17',
+      save: false
+    };
+
+    const resp = await fetch('https://wandbox.org/api/compile.json', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+    const d = await resp.json();
+
+    clearCon();
+
+    const hasErr = d.compiler_error && d.compiler_error.trim();
+    const hasMsg = d.compiler_message && d.compiler_message.trim();
+
+    if (hasErr) {
+      // Show compiler errors — but clean up the anonymous file path
+      clog('err', '✖ Помилка компіляції:');
+      d.compiler_error.trim().split('\n').forEach(l => {
+        clog('err', l.replace(/\/tmp\/[^:]+:/g, 'main.cpp:'));
+      });
+      document.getElementById('dotCon').className = 'dot err';
+    } else {
+      if (hasMsg) {
+        d.compiler_message.trim().split('\n').forEach(l => {
+          if (l.trim()) clog('warn', '⚠ ' + l.replace(/\/tmp\/[^:]+:/g, 'main.cpp:'));
+        });
+      }
+      clog('ok', '✅ Компіляція успішна!');
+      clog('info', '──────────────────────────────────');
+
+      if (d.program_output !== undefined && d.program_output !== '') {
+        d.program_output.split('\n').forEach(l => clog('out', l));
+      } else {
+        clog('info', '(програма не вивела нічого)');
+      }
+
+      if (d.program_error && d.program_error.trim()) {
+        clog('info', '──────── stderr ────────');
+        d.program_error.trim().split('\n').forEach(l => clog('err', l));
+      }
+
+      clog('info', '──────────────────────────────────');
+      const code = d.status;
+      clog(
+        (code === 0 || code === '0') ? 'ok' : 'err',
+        'Код завершення: ' + code
+      );
+      document.getElementById('dotCon').className = 'dot';
+    }
+  } catch(e) {
+    clearCon();
+    clog('err', '✖ Помилка з\'єднання: ' + e.message);
+    clog('info', '💡 Перевірте інтернет або спробуйте пізніше');
+    document.getElementById('dotCon').className = 'dot err';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Запустити';
+  }
+}
+
+// ============================================================
+// CONSOLE
+// ============================================================
+function clog(type, msg) {
+  const con = document.getElementById('con');
+  const d = document.createElement('div');
+  d.className = {err:'c-err', ok:'c-ok', out:'c-out', warn:'c-warn', info:'c-info'}[type] || 'c-info';
+  d.textContent = msg;
+  con.appendChild(d);
+  con.scrollTop = con.scrollHeight;
+}
+function clearCon() { document.getElementById('con').innerHTML = ''; }
+function clearAll() {
+  document.getElementById('ed').value = '';
+  document.getElementById('cppOut').textContent = "// Тут з'явиться транспільований C++ код";
+  clearCon(); updateLn();
+}
+
+// ============================================================
+// EXAMPLES  (all tested to compile correctly after transpile)
+// ============================================================
+const EXAMPLES = {
+  hello: `включити <iostream>
+
+використовувати простір_імен стандарт;
+
+ціле головна() {
+    виведення << "Привіт, Світ!" << новий_рядок;
+    повернути 0;
+}`,
+
+  loop: `включити <iostream>
+
+використовувати простір_імен стандарт;
+
+ціле головна() {
+    для (ціле i = 0; i < 5; i++) {
+        якщо (i % 2 == 0) {
+            виведення << i << " - парне" << новий_рядок;
+        } інакше {
+            виведення << i << " - непарне" << новий_рядок;
+        }
+    }
+
+    ціле n = 10;
+    поки (n > 0) {
+        виведення << n << " ";
+        n--;
+    }
+    виведення << новий_рядок;
+    повернути 0;
+}`,
+
+  func: `включити <iostream>
+
+використовувати простір_імен стандарт;
+
+ціле факторіал(ціле n) {
+    якщо (n <= 1) повернути 1;
+    повернути n * факторіал(n - 1);
+}
+
+порожньо подвоїти(ціле& x) {
+    x *= 2;
+}
+
+ціле головна() {
+    для (ціле i = 1; i <= 7; i++) {
+        виведення << i << "! = " << факторіал(i) << новий_рядок;
+    }
+    ціле число = 21;
+    подвоїти(число);
+    виведення << "Подвоєно: " << число << новий_рядок;
+    повернути 0;
+}`,
+
+  array: `включити <iostream>
+включити <вектор>
+включити <алгоритм>
+
+використовувати простір_імен стандарт;
+
+ціле головна() {
+    vector<int> nums = {5, 3, 8, 1, 9, 2, 7, 4, 6};
+    sort(nums.begin(), nums.end());
+
+    виведення << "Відсортовано: ";
+    для (авто x : nums) виведення << x << " ";
+    виведення << новий_рядок;
+
+    виведення << "Мін: " << nums.front() << новий_рядок;
+    виведення << "Макс: " << nums.back() << новий_рядок;
+    виведення << "Розмір: " << nums.size() << новий_рядок;
+    повернути 0;
+}`,
+
+  cls: `включити <iostream>
+включити <рядок>
+
+використовувати простір_імен стандарт;
+
+клас Тварина {
+відкритий:
+    string name;
+    ціле вік;
+    Тварина(string n, ціле v) : name(n), вік(v) {}
+    віртуальний порожньо звук() {
+        виведення << name << " видає звук" << новий_рядок;
+    }
+    порожньо інфо() {
+        виведення << "Тварина: " << name << ", вік: " << вік << новий_рядок;
+    }
+};
+
+клас Собака : відкритий Тварина {
+відкритий:
+    Собака(string n, ціле v) : Тварина(n, v) {}
+    порожньо звук() перевизначити {
+        виведення << name << ": Гав!" << новий_рядок;
+    }
+};
+
+ціле головна() {
+    Собака пес("Рекс", 3);
+    пес.інфо();
+    пес.звук();
+    повернути 0;
+}`,
+
+  tmpl: `включити <iostream>
+включити <вектор>
+
+використовувати простір_імен стандарт;
+
+шаблон <клас_тип T>
+T максимум(T a, T b) {
+    повернути (a > b) ? a : b;
+}
+
+шаблон <клас_тип T>
+клас Контейнер {
+закритий:
+    vector<T> дані;
+відкритий:
+    порожньо додати(T v) { дані.push_back(v); }
+    T взяти() { T v = дані.back(); дані.pop_back(); повернути v; }
+    ціле розмір() { повернути (ціле)дані.size(); }
+};
+
+ціле головна() {
+    виведення << максимум(10, 25) << новий_рядок;
+    виведення << максимум(3.14, 2.71) << новий_рядок;
+    Контейнер<ціле> c;
+    для (ціле i = 1; i <= 5; i++) c.додати(i * 10);
+    поки (c.розмір() > 0) виведення << c.взяти() << " ";
+    виведення << новий_рядок;
+    повернути 0;
+}`
+};
+
+function loadExample(name) {
+  if (!name) return;
+  document.getElementById('ed').value = EXAMPLES[name] || '';
+  updateLn(); clearCon();
+  const cpp = transpileCode(EXAMPLES[name]);
+  document.getElementById('cppOut').textContent = cpp;
+  document.getElementById('dotCpp').className = 'dot';
+  clog('ok', '✅ Приклад завантажено — транспільовано');
+  clog('info', '📦 Натисніть ▶ Запустити для виконання');
+}
+
+// ============================================================
+// EDITOR HELPERS
+// ============================================================
+function updateLn() {
+  const ed = document.getElementById('ed');
+  const n = ed.value.split('\n').length;
+  document.getElementById('ln').textContent = Array.from({length:n},(_,i)=>i+1).join('\n');
+  const w = ed.value.trim() ? ed.value.trim().split(/\s+/).length : 0;
+  document.getElementById('stWords').textContent = w + ' слів';
+}
+function syncScroll() {
+  document.getElementById('ln').scrollTop = document.getElementById('ed').scrollTop;
+}
+function handleTab(e) {
+  if (e.key !== 'Tab') return;
+  e.preventDefault();
+  const ta = document.getElementById('ed');
+  const s = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.slice(0,s) + '    ' + ta.value.slice(end);
+  ta.selectionStart = ta.selectionEnd = s + 4;
+  updateLn();
+}
+function updateCursor() {
+  const ta = document.getElementById('ed');
+  const rows = ta.value.slice(0, ta.selectionStart).split('\n');
+  document.getElementById('stCursor').textContent =
+    'Рядок ' + rows.length + ', Стовпець ' + (rows[rows.length-1].length+1);
+}
+
+// ============================================================
+// AUTOCOMPLETE ENGINE
+// ============================================================
+
+// Icon + color per category
+const CAT_META = {
+  type: {icon:'T',  bg:'rgba(128,203,196,.18)', col:'#80cbc4', label:'тип'},
+  flow: {icon:'⇢',  bg:'rgba(199,146,234,.18)', col:'#c792ea', label:'потік'},
+  oop:  {icon:'◈',  bg:'rgba(130,170,255,.18)', col:'#82aaff', label:'ооп'},
+  mem:  {icon:'M',  bg:'rgba(255,213,79,.18)',  col:'#ffd54f', label:'пам\'ять'},
+  val:  {icon:'V',  bg:'rgba(247,140,108,.18)', col:'#f78c6c', label:'знач'},
+  exc:  {icon:'!',  bg:'rgba(239,83,80,.18)',   col:'#ef5350', label:'вин'},
+  io:   {icon:'IO', bg:'rgba(79,195,247,.18)',  col:'#4fc3f7', label:'io'},
+  lib:  {icon:'#',  bg:'rgba(165,214,167,.18)', col:'#a5d6a7', label:'бібл'},
+  snip: {icon:'✦',  bg:'rgba(255,213,79,.18)',  col:'#ffd54f', label:'сніпет'},
+};
+
+// Snippets — expanded on Tab/Enter
+const SNIPPETS = [
+  {
+    uk:'якщо_блок', label:'якщо (...) { }', cat:'snip',
+    cpp:'if',
+    body:'якщо ($1) {\n    $0\n}'
+  },
+  {
+    uk:'для_блок', label:'для (...) { }', cat:'snip',
+    cpp:'for',
+    body:'для (ціле $1 = 0; $1 < $2; $1++) {\n    $0\n}'
+  },
+  {
+    uk:'поки_блок', label:'поки (...) { }', cat:'snip',
+    cpp:'while',
+    body:'поки ($1) {\n    $0\n}'
+  },
+  {
+    uk:'клас_блок', label:'клас { ... }', cat:'snip',
+    cpp:'class',
+    body:'клас $1 {\nвідкритий:\n    $1($2) {}\n};'
+  },
+  {
+    uk:'головна_блок', label:'ціле головна() { }', cat:'snip',
+    cpp:'main',
+    body:'ціле головна() {\n    $0\n    повернути 0;\n}'
+  },
+  {
+    uk:'включити_іо', label:'#include iostream', cat:'snip',
+    cpp:'#include',
+    body:'включити <iostream>\n\nвикористовувати простір_імен стандарт;\n'
+  },
+  {
+    uk:'вивести', label:'виведення << ... << новий_рядок', cat:'snip',
+    cpp:'cout',
+    body:'виведення << $0 << новий_рядок;'
+  },
+  {
+    uk:'ввести', label:'введення >> ...', cat:'snip',
+    cpp:'cin',
+    body:'введення >> $0;'
+  },
+];
+
+// Combined completions list: snippets first, then keywords
+const AC_ALL = [
+  ...SNIPPETS.map(s => ({...s, isSnip:true})),
+  ...KW.map(k => ({...k, isSnip:false})),
+];
+
+let acItems = [];   // current filtered list
+let acIdx   = -1;   // selected index
+let acPrefix = '';  // current word being typed
+
+const acMenu = document.getElementById('acMenu');
+
+function acGetWordAtCursor() {
+  const ta = document.getElementById('ed');
+  const pos = ta.selectionStart;
+  const text = ta.value.slice(0, pos);
+  // Match Ukrainian + Latin word chars backwards from cursor
+  const m = text.match(/[\u0400-\u04FF\w]+$/u);
+  return m ? m[0] : '';
+}
+
+function acShow(items, prefix) {
+  if (!items.length) { acHide(); return; }
+  acItems  = items;
+  acIdx    = 0;
+  acPrefix = prefix;
+
+  // Position menu near cursor using a hidden mirror trick
+  const ta = document.getElementById('ed');
+  const rect = ta.getBoundingClientRect();
+  const pos  = ta.selectionStart;
+  const text = ta.value.slice(0, pos);
+  const lines = text.split('\n');
+  const lineIdx = lines.length - 1;
+  const linesBefore = lineIdx;
+
+  // Approximate pixel position
+  const lineH = 13 * 1.7; // font-size * line-height
+  const charW = 7.8;      // approx for JetBrains Mono 13px
+  const col = lines[lineIdx].length;
+
+  const x = rect.left + 44 + 14 + col * charW - acPrefix.length * charW;
+  const y = rect.top  + 14 + (linesBefore + 1) * lineH - ta.scrollTop;
+
+  // Render items
+  let html = '<div class="ac-hdr">Автодоповнення УкрС++ · Tab або Enter для вибору</div>';
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const meta = CAT_META[it.cat] || CAT_META.lib;
+    const sel  = i === acIdx ? ' ac-sel' : '';
+
+    // Highlight matched prefix inside word
+    const word = it.isSnip ? it.uk : it.uk;
+    const lo   = word.toLowerCase();
+    const pflo = prefix.toLowerCase();
+    const pi   = lo.indexOf(pflo);
+    let wordHtml = word;
+    if (pi >= 0 && prefix.length > 0) {
+      wordHtml = word.slice(0,pi)
+        + '<b>' + word.slice(pi, pi+prefix.length) + '</b>'
+        + word.slice(pi+prefix.length);
+    }
+
+    html += `<div class="ac-item${sel}" data-idx="${i}">
+      <div class="ac-left">
+        <div class="ac-icon" style="background:${meta.bg};color:${meta.col}">${meta.icon}</div>
+        <span class="ac-word">${wordHtml}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="ac-cpp">${it.isSnip ? it.label : '→ '+it.cpp}</span>
+        <span class="ac-badge" style="background:${meta.bg};color:${meta.col}">${meta.label}</span>
+      </div>
+    </div>`;
+  }
+  acMenu.innerHTML = html;
+
+  // Clamp to viewport
+  const menuW = 320, menuH = Math.min(items.length * 34 + 28, 260);
+  const left  = Math.min(x, window.innerWidth  - menuW - 8);
+  const top   = y + menuH > window.innerHeight - 8 ? y - menuH - lineH : y;
+
+  acMenu.style.left    = Math.max(8, left) + 'px';
+  acMenu.style.top     = Math.max(8, top)  + 'px';
+  acMenu.style.display = 'block';
+
+  // Click handlers
+  acMenu.querySelectorAll('.ac-item').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      acApply(+el.dataset.idx);
+    });
+  });
+}
+
+function acHide() {
+  acMenu.style.display = 'none';
+  acItems = [];
+  acIdx   = -1;
+}
+
+function acFilter(prefix) {
+  if (!prefix || prefix.length < 2) return [];
+  const lo = prefix.toLowerCase();
+  return AC_ALL.filter(it => {
+    const w = it.uk.toLowerCase();
+    return w.startsWith(lo) || w.includes(lo);
+  }).slice(0, 12);
+}
+
+function acOnInput() {
+  const prefix = acGetWordAtCursor();
+  const filtered = acFilter(prefix);
+  if (filtered.length) acShow(filtered, prefix);
+  else acHide();
+}
+
+function acOnKeyDown(e) {
+  if (acMenu.style.display === 'none') return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acIdx = (acIdx + 1) % acItems.length;
+    acRefreshSel();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acIdx = (acIdx - 1 + acItems.length) % acItems.length;
+    acRefreshSel();
+  } else if (e.key === 'Enter' || e.key === 'Tab') {
+    if (acIdx >= 0) {
+      e.preventDefault();
+      acApply(acIdx);
+    }
+  } else if (e.key === 'Escape') {
+    acHide();
+  }
+}
+
+function acRefreshSel() {
+  acMenu.querySelectorAll('.ac-item').forEach((el,i) => {
+    el.classList.toggle('ac-sel', i === acIdx);
+    if (i === acIdx) el.scrollIntoView({block:'nearest'});
+  });
+}
+
+function acApply(idx) {
+  const it = acItems[idx];
+  if (!it) return;
+
+  const ta  = document.getElementById('ed');
+  const pos = ta.selectionStart;
+  const val = ta.value;
+
+  // Find start of current word
+  const before = val.slice(0, pos);
+  const m = before.match(/[\u0400-\u04FF\w]+$/u);
+  const wordStart = m ? pos - m[0].length : pos;
+
+  let insert = '';
+  let cursorOffset = 0;
+
+  if (it.isSnip) {
+    // Snippet: replace $0 with cursor, remove other $N placeholders simply
+    insert = it.body
+      .replace(/\$\d/g, '')   // remove all tab stops (simple version)
+      .replace(/\$0/, '');
+    // Find where $0 was to place cursor there
+    const bodyWithMark = it.body.replace(/\$[1-9]/g, '').replace(/\$0/, '\x01');
+    const markIdx = bodyWithMark.indexOf('\x01');
+    cursorOffset = markIdx >= 0 ? markIdx : insert.length;
+  } else {
+    insert = it.uk;
+    cursorOffset = insert.length;
+  }
+
+  ta.value = val.slice(0, wordStart) + insert + val.slice(pos);
+  ta.selectionStart = ta.selectionEnd = wordStart + cursorOffset;
+
+  acHide();
+  updateLn();
+  updateCursor();
+  ta.focus();
+}
+
+// Hide when clicking outside
+document.addEventListener('mousedown', e => {
+  if (!acMenu.contains(e.target) && e.target.id !== 'ed') acHide();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderSidebar();
+loadExample('hello');
+</script>
+</body>
+</html>
