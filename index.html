@@ -65,10 +65,13 @@ pre.cpp-out::-webkit-scrollbar-thumb{background:var(--border)}
 .c-err{color:var(--red)}
 .c-out{color:var(--text)}
 .c-warn{color:var(--yellow)}
-.stdin-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-top:1px solid var(--border);flex-shrink:0}
+.c-prompt{color:var(--accent);font-style:italic}
+.c-input{color:#e8eaf6;display:flex;align-items:center;gap:6px}
+.stdin-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:2px solid var(--accent);flex-shrink:0;background:rgba(79,195,247,.06);animation:stdinPulse 1.5s ease-in-out infinite}
+@keyframes stdinPulse{0%,100%{border-top-color:var(--accent)}50%{border-top-color:rgba(79,195,247,.3)}}
 .stdin-bar label{font-size:11px;color:var(--muted);white-space:nowrap}
-.stdin-in{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 8px;outline:none}
-.stdin-in:focus{border-color:var(--accent)}
+.stdin-in{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:5px 10px;outline:none}
+.stdin-in:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,195,247,.15)}
 .statusbar{height:22px;background:linear-gradient(90deg,#0277bd,#01579b);display:flex;align-items:center;padding:0 14px;gap:14px;font-size:11px;color:rgba(255,255,255,.8);flex-shrink:0}
 .badge{background:rgba(255,255,255,.2);padding:0 5px;border-radius:3px;font-size:10px;font-weight:600}
 /* AUTOCOMPLETE */
@@ -131,9 +134,11 @@ pre.cpp-out::-webkit-scrollbar-thumb{background:var(--border)}
     <div style="flex:1;display:flex;flex-direction:column;min-height:0">
       <div class="ph"><span>Консоль / Результат</span><div class="dot" id="dotCon"></div></div>
       <div class="console" id="con"></div>
-      <div class="stdin-bar">
-        <label>stdin:</label>
-        <input class="stdin-in" id="stdinIn" type="text" placeholder="Дані для програми (якщо є cin)...">
+      <div class="stdin-bar" id="stdinBar" style="display:none">
+        <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:13px">▶</span>
+        <input class="stdin-in" id="stdinIn" type="text" placeholder="Введіть значення та натисніть Enter..."
+          onkeydown="stdinSubmit(event)" autocomplete="off" spellcheck="false">
+        <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px" onclick="stdinSubmit({key:'Enter'})">↵</button>
       </div>
     </div>
   </div>
@@ -366,8 +371,69 @@ function doTranspile() {
 }
 
 // ============================================================
-// RUN via Wandbox
+// RUN via Wandbox — інтерактивний stdin
 // ============================================================
+
+// Wandbox не підтримує справжній інтерактивний stdin (це статичний компілятор).
+// Тому реалізуємо "покроковий" режим:
+// 1. Аналізуємо код — рахуємо скільки разів зустрічається "введення >>" (cin >>)
+// 2. Показуємо поля вводу по черзі, збираємо всі відповіді
+// 3. Надсилаємо їх усі разом як stdin рядок
+
+let stdinQueue = [];      // зібрані відповіді користувача
+let stdinResolvers = [];  // Promise resolvers що чекають відповідь
+let stdinExpected = 0;    // скільки значень очікується
+
+function stdinSubmit(e) {
+  if (e.key !== 'Enter') return;
+  const inp = document.getElementById('stdinIn');
+  const val = inp.value;
+  inp.value = '';
+
+  // Показати введене значення в консолі
+  const con = document.getElementById('con');
+  const d = document.createElement('div');
+  d.style.cssText = 'color:#e8eaf6;font-family:"JetBrains Mono",monospace;display:flex;align-items:center;gap:6px';
+  d.innerHTML = '<span style="color:var(--accent)">▶</span><span>' + escHtml(val) + '</span>';
+  con.appendChild(d);
+  con.scrollTop = con.scrollHeight;
+
+  stdinQueue.push(val);
+
+  if (stdinResolvers.length > 0) {
+    const resolve = stdinResolvers.shift();
+    resolve(val);
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Порахувати скільки cin >> є в транспільованому коді
+function countCinOps(cpp) {
+  const matches = cpp.match(/std::cin\s*>>/g) || [];
+  return matches.length;
+}
+
+// Показати/приховати панель вводу
+function showStdin(show) {
+  const bar = document.getElementById('stdinBar');
+  bar.style.display = show ? 'flex' : 'none';
+  if (show) {
+    document.getElementById('stdinIn').focus();
+  }
+}
+
+// Запитати значення в користувача інтерактивно
+function askStdin(prompt) {
+  return new Promise(resolve => {
+    showStdin(true);
+    clog('input', prompt || '? Очікування вводу...');
+    stdinResolvers.push(resolve);
+  });
+}
+
 async function runCode() {
   const src = document.getElementById('ed').value.trim();
   if (!src) { clearCon(); clog('err','✖ Редактор порожній'); return; }
@@ -382,54 +448,96 @@ async function runCode() {
   document.getElementById('dotCon').className = 'dot run';
 
   clearCon();
-  clog('info', '⏳ Надсилаємо на Wandbox (GCC latest, C++17)...');
+  stdinQueue = [];
+  stdinResolvers = [];
+  showStdin(false);
 
-  const stdin = document.getElementById('stdinIn').value;
+  // Підрахувати скільки вводів потрібно
+  const cinCount = countCinOps(cpp);
 
+  if (cinCount > 0) {
+    clog('info', '⏳ Збираємо вхідні дані перед компіляцією...');
+    clog('info', `📥 Програма очікує ${cinCount} значень. Введіть їх по черзі:`);
+
+    // Збираємо всі значення інтерактивно
+    const inputs = [];
+    showStdin(true);
+    for (let i = 0; i < cinCount; i++) {
+      clog('prompt', `[${i+1}/${cinCount}] Введіть значення:`);
+      const val = await askStdin();
+      inputs.push(val);
+    }
+    showStdin(false);
+
+    clog('ok', `✅ Отримано ${inputs.length} значень. Компілюємо...`);
+
+    var stdinStr = inputs.join('\n');
+    await compileAndRun(cpp, stdinStr, btn);
+  } else {
+    clog('info', '⏳ Надсилаємо на Wandbox (GCC, C++17)...');
+    await compileAndRun(cpp, '', btn);
+  }
+}
+
+async function compileAndRun(cpp, stdinStr, btn) {
   try {
-    const payload = {
-      compiler: 'gcc-head',
-      code: cpp,
-      stdin: stdin,
-      // Pass options as separate array items via compiler-option-raw
-      'compiler-option-raw': '-std=c++17',
-      save: false
-    };
-
     const resp = await fetch('https://wandbox.org/api/compile.json', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        compiler: 'gcc-head',
+        code: cpp,
+        stdin: stdinStr,
+        'compiler-option-raw': '-std=c++17',
+        save: false
+      })
     });
 
     if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
     const d = await resp.json();
 
-    clearCon();
+    // Якщо були inputи — очистити і показати результат красиво
+    if (stdinStr) {
+      clearCon();
+      // Показати діалог програми красиво
+      const outLines = (d.program_output || '').split('\n');
+      const inLines  = stdinStr.split('\n');
+      let inIdx = 0;
+      for (const line of outLines) {
+        if (!line && outLines.indexOf(line) === outLines.length-1) continue;
+        clog('out', line);
+        // Після кожного рядку виводу — показати що ввів юзер (якщо є ще)
+        if (inIdx < inLines.length && inLines[inIdx] !== undefined && line.trim()) {
+          // Don't interleave — just show output then inputs
+        }
+      }
+    }
 
     const hasErr = d.compiler_error && d.compiler_error.trim();
-    const hasMsg = d.compiler_message && d.compiler_message.trim();
-
     if (hasErr) {
-      // Show compiler errors — but clean up the anonymous file path
+      clearCon();
       clog('err', '✖ Помилка компіляції:');
-      d.compiler_error.trim().split('\n').forEach(l => {
-        clog('err', l.replace(/\/tmp\/[^:]+:/g, 'main.cpp:'));
-      });
+      d.compiler_error.trim().split('\n').forEach(l =>
+        clog('err', l.replace(/\/tmp\/[^:]+:/g, 'main.cpp:'))
+      );
       document.getElementById('dotCon').className = 'dot err';
     } else {
-      if (hasMsg) {
-        d.compiler_message.trim().split('\n').forEach(l => {
-          if (l.trim()) clog('warn', '⚠ ' + l.replace(/\/tmp\/[^:]+:/g, 'main.cpp:'));
-        });
-      }
-      clog('ok', '✅ Компіляція успішна!');
-      clog('info', '──────────────────────────────────');
-
-      if (d.program_output !== undefined && d.program_output !== '') {
-        d.program_output.split('\n').forEach(l => clog('out', l));
+      if (!stdinStr) {
+        // Без вводу — просто показати вивід
+        if (d.compiler_message && d.compiler_message.trim()) {
+          d.compiler_message.trim().split('\n').forEach(l => {
+            if (l.trim()) clog('warn', '⚠ ' + l.replace(/\/tmp\/[^:]+:/g, 'main.cpp:'));
+          });
+        }
+        clog('ok', '✅ Компіляція успішна!');
+        clog('info', '──────────────────────────────────');
+        if (d.program_output !== undefined && d.program_output !== '') {
+          d.program_output.split('\n').forEach(l => clog('out', l));
+        } else {
+          clog('info', '(програма не вивела нічого)');
+        }
       } else {
-        clog('info', '(програма не вивела нічого)');
+        clog('info', '──────────────────────────────────');
       }
 
       if (d.program_error && d.program_error.trim()) {
@@ -439,10 +547,7 @@ async function runCode() {
 
       clog('info', '──────────────────────────────────');
       const code = d.status;
-      clog(
-        (code === 0 || code === '0') ? 'ok' : 'err',
-        'Код завершення: ' + code
-      );
+      clog((code===0||code==='0') ? 'ok' : 'err', 'Код завершення: ' + code);
       document.getElementById('dotCon').className = 'dot';
     }
   } catch(e) {
@@ -453,6 +558,7 @@ async function runCode() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = '▶ Запустити';
+    showStdin(false);
   }
 }
 
@@ -462,8 +568,13 @@ async function runCode() {
 function clog(type, msg) {
   const con = document.getElementById('con');
   const d = document.createElement('div');
-  d.className = {err:'c-err', ok:'c-ok', out:'c-out', warn:'c-warn', info:'c-info'}[type] || 'c-info';
-  d.textContent = msg;
+  const cls = {err:'c-err',ok:'c-ok',out:'c-out',warn:'c-warn',info:'c-info',prompt:'c-prompt',input:'c-input'}[type]||'c-info';
+  d.className = cls;
+  if (type === 'prompt') {
+    d.innerHTML = '<span style="color:var(--accent);margin-right:6px">▶</span>' + escHtml(msg);
+  } else {
+    d.textContent = msg;
+  }
   con.appendChild(d);
   con.scrollTop = con.scrollHeight;
 }
